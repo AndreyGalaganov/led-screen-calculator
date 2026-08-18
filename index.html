@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#000000">
-<title>Калькулятор экрана v1.0</title>
+<title>Калькулятор экрана v1.2</title>
 <style>
   * { box-sizing: border-box; }
 
@@ -186,6 +186,41 @@
     margin-top: 10px;
   }
 
+  .port-table-wrap {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .port-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    line-height: 1.3;
+  }
+
+  .port-table th,
+  .port-table td {
+    border: 1px solid var(--line);
+    padding: 8px 7px;
+    text-align: left;
+    vertical-align: middle;
+  }
+
+  .port-table th {
+    font-weight: 700;
+  }
+
+  .port-table td.num,
+  .port-table th.num {
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  .port-table .primary-row td {
+    font-weight: 700;
+  }
+
   @media (max-width: 390px) {
     .block { padding: 10px; }
     .block-title { font-size: 16px; }
@@ -206,7 +241,7 @@
 </head>
 <body>
 <main class="app">
-  <h1>Калькулятор экрана <span style="font-size:0.55em;font-weight:400;">v1.0</span></h1>
+  <h1>Калькулятор экрана <span style="font-size:0.55em;font-weight:400;">v1.2</span></h1>
   <div class="subtitle">Изменение значений — сразу, без кнопки «Рассчитать».</div>
 
   <section class="block">
@@ -338,6 +373,53 @@
       </div>
     </div>
 
+    <div class="section-title">Всего пикселей</div>
+    <div class="field">
+      <div class="input-wrap">
+        <input id="pixelsTotal" readonly tabindex="-1" placeholder="0">
+        <span class="unit">px</span>
+      </div>
+    </div>
+
+    <div class="section-title">Ограничения на 1 Ethernet-порт</div>
+    <div class="port-table-wrap">
+      <table class="port-table" aria-label="Ограничения на один Ethernet-порт">
+        <thead>
+          <tr>
+            <th>Режим</th>
+            <th class="num">Лимит, px</th>
+            <th class="num">Нужно портов</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="primary-row">
+            <td>8 bit · 60 Hz · MCTRL300</td>
+            <td class="num">650 000</td>
+            <td class="num" id="ports650">0</td>
+          </tr>
+          <tr>
+            <td>8 bit · 50 Hz · 1G</td>
+            <td class="num">791 667</td>
+            <td class="num" id="ports791667">0</td>
+          </tr>
+          <tr>
+            <td>8 bit · 120 Hz · 1G</td>
+            <td class="num">329 861</td>
+            <td class="num" id="ports329861">0</td>
+          </tr>
+          <tr>
+            <td>10/12 bit · 60 Hz*</td>
+            <td class="num">320 000</td>
+            <td class="num" id="ports320">0</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note">
+      * 320 000 px/порт — типичный лимит NovaStar для моделей с 10/12-bit.
+      Для MCTRL300 используйте строку 650 000 px/порт. Точный предел всегда зависит от модели контроллера.
+    </div>
+
     <div id="status" class="status">
       Введите параметры кабинета и целевое соотношение сторон.
     </div>
@@ -366,7 +448,8 @@
     pixelsY: $('pixelsY'),
     countX: $('countX'),
     countY: $('countY'),
-    countTotal: $('countTotal')
+    countTotal: $('countTotal'),
+    pixelsTotal: $('pixelsTotal')
   };
 
   const status = $('status');
@@ -401,6 +484,26 @@
   function setValue(id, value, decimals = 4) {
     if (!Number.isFinite(value)) return;
     f[id].value = fmt(value, decimals);
+  }
+
+  function fmtIntSpaces(n) {
+    if (!Number.isFinite(n)) return '0';
+    return Math.round(n).toLocaleString('ru-RU').replace(/\u00a0/g, ' ');
+  }
+
+  function updatePortTable(totalPixels) {
+    const total = Number.isFinite(totalPixels) && totalPixels > 0 ? Math.round(totalPixels) : 0;
+    const rows = [
+      ['ports650', 650000],
+      ['ports791667', 791667],
+      ['ports329861', 329861],
+      ['ports320', 320000]
+    ];
+
+    for (const [id, limit] of rows) {
+      const el = $(id);
+      if (el) el.textContent = total > 0 ? String(Math.ceil(total / limit)) : '0';
+    }
   }
 
   function maxCountX() {
@@ -569,6 +672,8 @@
     setValue('metersY', 0, 0);
     setValue('pixelsX', 0, 0);
     setValue('pixelsY', 0, 0);
+    f.pixelsTotal.value = '0';
+    updatePortTable(0);
 
     if (!ratioLocked) {
       // При нулевом экране фактического соотношения сторон нет,
@@ -602,6 +707,10 @@
     if (preserveId !== 'metersY') setValue('metersY', screenCmY / 100, 3);
     if (preserveId !== 'pixelsX') setValue('pixelsX', px, 0);
     if (preserveId !== 'pixelsY') setValue('pixelsY', py, 0);
+
+    const totalPixels = px * py;
+    f.pixelsTotal.value = fmtIntSpaces(totalPixels);
+    updatePortTable(totalPixels);
 
     if (!ratioLocked) {
       updateRatioFromActual(px, py);
@@ -1293,9 +1402,10 @@
   }));
 
   $('clearScreen').addEventListener('click', () => {
-    for (const id of ['metersX', 'metersY', 'pixelsX', 'pixelsY', 'countX', 'countY', 'countTotal']) {
+    for (const id of ['metersX', 'metersY', 'pixelsX', 'pixelsY', 'countX', 'countY', 'countTotal', 'pixelsTotal']) {
       f[id].value = '';
     }
+    updatePortTable(0);
     refreshStatus();
     saveState();
   });
@@ -1311,6 +1421,7 @@
       localStorage.removeItem(storageKey);
     } catch (e) {}
 
+    updatePortTable(0);
     refreshStatus();
   });
 
@@ -1327,6 +1438,16 @@
     } else {
       if (good(restoredX) && good(restoredY)) {
         setValue('countTotal', Math.round(restoredX) * Math.round(restoredY), 0);
+        const restoredPxX = numberOf('pixelsX');
+        const restoredPxY = numberOf('pixelsY');
+        if (good(restoredPxX) && good(restoredPxY)) {
+          const totalPixels = restoredPxX * restoredPxY;
+          f.pixelsTotal.value = fmtIntSpaces(totalPixels);
+          updatePortTable(totalPixels);
+        } else {
+          f.pixelsTotal.value = '0';
+          updatePortTable(0);
+        }
       }
       refreshStatus();
     }
