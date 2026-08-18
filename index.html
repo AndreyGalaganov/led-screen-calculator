@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#000000">
-<title>Калькулятор экрана v1.3</title>
+<title>Калькулятор экрана v1.4</title>
 <style>
   * { box-sizing: border-box; }
 
@@ -241,7 +241,7 @@
 </head>
 <body>
 <main class="app">
-  <h1>Калькулятор экрана <span style="font-size:0.55em;font-weight:400;">v1.3</span></h1>
+  <h1>Калькулятор экрана <span style="font-size:0.55em;font-weight:400;">v1.4</span></h1>
   <div class="subtitle">Изменение значений — сразу, без кнопки «Рассчитать».</div>
 
   <section class="block">
@@ -327,6 +327,11 @@
           <span class="unit">м</span>
         </div>
       </div>
+    </div>
+
+    <button id="freeSizeBtn" class="ratio-lock" type="button">Освободить размер экрана</button>
+    <div id="freeSizeNote" class="note">
+      Размер экрана привязан к целевому соотношению сторон: изменение одной оси подгоняет вторую.
     </div>
 
     <div class="section-title">Разрешение экрана</div>
@@ -455,11 +460,14 @@
   const status = $('status');
   const ratioLockBtn = $('ratioLockBtn');
   const ratioNote = $('ratioNote');
+  const freeSizeBtn = $('freeSizeBtn');
+  const freeSizeNote = $('freeSizeNote');
 
   let busy = false;
   let lastAxis = 'x';
   let lastSource = 'count';
   let ratioLocked = true;
+  let freeSize = false;
   const MAX_SCREEN_METERS = 100;
 
   function numberOf(id) {
@@ -553,8 +561,12 @@
     return good(r.x) && good(r.y);
   }
 
+  function aspectConstraintActive() {
+    return ratioLocked && !freeSize;
+  }
+
   function ready() {
-    return cabinetReady() && (!ratioLocked || ratioReady());
+    return cabinetReady() && (!aspectConstraintActive() || ratioReady());
   }
 
   function gcd(a, b) {
@@ -588,15 +600,35 @@
       ratioLockBtn.classList.remove('unlocked');
       ratioLockBtn.textContent = 'Разблокировать соотношение';
       ratioLockBtn.setAttribute('aria-pressed', 'false');
-      ratioNote.textContent =
-        'Соотношение зафиксировано и задаётся вручную. Размер, разрешение и количество кабинетов подгоняются под него.';
+      ratioNote.textContent = freeSize
+        ? 'Соотношение зафиксировано и используется как эталон для сравнения. Свободный размер экрана под него не подгоняется.'
+        : 'Соотношение зафиксировано и задаётся вручную. Размер, разрешение и количество кабинетов подгоняются под него.';
     } else {
       ratioLockBtn.classList.add('unlocked');
       ratioLockBtn.textContent = 'Заблокировать соотношение';
       ratioLockBtn.setAttribute('aria-pressed', 'true');
-      ratioNote.textContent =
-        'Соотношение разблокировано: его можно менять вручную, а при изменении размера, разрешения или количества кабинетов оно автоматически обновляется по фактическому экрану.';
+      ratioNote.textContent = freeSize
+        ? 'Соотношение разблокировано. При изменении экрана оно может обновляться по фактическому разрешению; для сравнения с 16:9 оставьте соотношение заблокированным.'
+        : 'Соотношение разблокировано: его можно менять вручную, а при изменении размера, разрешения или количества кабинетов оно автоматически обновляется по фактическому экрану.';
     }
+  }
+
+  function updateFreeSizeUI() {
+    if (freeSize) {
+      freeSizeBtn.classList.add('unlocked');
+      freeSizeBtn.textContent = 'Привязать размер к соотношению';
+      freeSizeBtn.setAttribute('aria-pressed', 'true');
+      freeSizeNote.textContent =
+        'Свободный размер: X и Y задаются независимо. Целевое соотношение используется только для сравнения и расчёта отклонения.';
+    } else {
+      freeSizeBtn.classList.remove('unlocked');
+      freeSizeBtn.textContent = 'Освободить размер экрана';
+      freeSizeBtn.setAttribute('aria-pressed', 'false');
+      freeSizeNote.textContent =
+        'Размер экрана привязан к целевому соотношению сторон: изменение одной оси подгоняет вторую.';
+    }
+
+    updateRatioLockUI();
   }
 
   function relativeRatioError(cx, cy) {
@@ -712,7 +744,7 @@
     f.pixelsTotal.value = fmtIntSpaces(totalPixels);
     updatePortTable(totalPixels);
 
-    if (!ratioLocked) {
+    if (!ratioLocked && !freeSize) {
       updateRatioFromActual(px, py);
     }
 
@@ -722,7 +754,7 @@
 
   function fromMeters(axis) {
     if (!cabinetReady()) return false;
-    if (ratioLocked && !ratioReady()) return false;
+    if (aspectConstraintActive() && !ratioReady()) return false;
 
     const c = cabinet();
 
@@ -738,7 +770,7 @@
       const cx = clampCountX((mx * 100) / c.cmX);
 
       let cy;
-      if (ratioLocked) {
+      if (aspectConstraintActive()) {
         cy = bestYForX(cx);
       } else {
         cy = numberOf('countY');
@@ -765,7 +797,7 @@
     const cy = clampCountY((my * 100) / c.cmY);
 
     let cx;
-    if (ratioLocked) {
+    if (aspectConstraintActive()) {
       cx = bestXForY(cy);
     } else {
       cx = numberOf('countX');
@@ -782,7 +814,7 @@
   }
   function fromPixels(axis) {
     if (!cabinetReady()) return false;
-    if (ratioLocked && !ratioReady()) return false;
+    if (aspectConstraintActive() && !ratioReady()) return false;
 
     const c = cabinet();
 
@@ -795,7 +827,7 @@
       const cx = clampCountX(px / c.pxX);
 
       let cy;
-      if (ratioLocked) {
+      if (aspectConstraintActive()) {
         cy = bestYForX(cx);
       } else {
         cy = numberOf('countY');
@@ -819,7 +851,7 @@
     const cy = clampCountY(py / c.pxY);
 
     let cx;
-    if (ratioLocked) {
+    if (aspectConstraintActive()) {
       cx = bestXForY(cy);
     } else {
       cx = numberOf('countX');
@@ -839,7 +871,7 @@
 
   function fromCount(axis) {
     if (!cabinetReady()) return false;
-    if (ratioLocked && !ratioReady()) return false;
+    if (aspectConstraintActive() && !ratioReady()) return false;
 
     if (axis === 'x') {
       const raw = numberOf('countX');
@@ -856,7 +888,7 @@
       const cx = clampCountX(raw);
 
       let cy;
-      if (ratioLocked) {
+      if (aspectConstraintActive()) {
         cy = bestYForX(cx);
       } else {
         cy = numberOf('countY');
@@ -888,7 +920,7 @@
     const cy = clampCountY(raw);
 
     let cx;
-    if (ratioLocked) {
+    if (aspectConstraintActive()) {
       cx = bestXForY(cy);
     } else {
       cx = numberOf('countX');
@@ -939,7 +971,7 @@
     let cx = numberOf('countX');
     let cy = numberOf('countY');
 
-    if (!ratioLocked) {
+    if (!aspectConstraintActive()) {
       if (good(cx) && good(cy)) {
         render(Math.round(cx), Math.round(cy));
         return;
@@ -984,7 +1016,7 @@
       return;
     }
 
-    if (ratioLocked && !ratioReady()) {
+    if ((ratioLocked || freeSize) && !ratioReady()) {
       status.textContent = 'Введите целевое соотношение сторон.';
       return;
     }
@@ -1004,6 +1036,31 @@
 
     const actualCmX = cx * c.cmX;
     const actualCmY = cy * c.cmY;
+
+    if (freeSize && ratioReady()) {
+      const actualMetersX = actualCmX / 100;
+      const actualMetersY = actualCmY / 100;
+      const targetRatio = r.x / r.y;
+      const actualRatio = actualMetersX / actualMetersY;
+      const deviation = Math.abs(actualRatio - targetRatio) / targetRatio * 100;
+
+      const idealYByX = actualMetersX * r.y / r.x;
+      const idealXByY = actualMetersY * r.x / r.y;
+      const changeYcm = (idealYByX - actualMetersY) * 100;
+      const changeXcm = (idealXByY - actualMetersX) * 100;
+
+      status.innerHTML =
+        `<div><b>Фактический размер:</b> ${fmt(actualMetersX, 3)} × ${fmt(actualMetersY, 3)} м</div>` +
+        `<div><b>Фактическое соотношение:</b> ${fmt(actualRatio, 4)} : 1</div>` +
+        `<div><b>Целевое соотношение:</b> ${Math.round(r.x)}:${Math.round(r.y)}</div>` +
+        `<div><b>Отклонение от ${Math.round(r.x)}:${Math.round(r.y)}:</b> ${fmt(deviation, 2)}%</div>` +
+        `<div><b>Если сохранить ширину ${fmt(actualMetersX, 3)} м:</b> высота должна быть ${fmt(idealYByX, 3)} м (${signedCm(changeYcm)} см)</div>` +
+        `<div><b>Если сохранить высоту ${fmt(actualMetersY, 3)} м:</b> ширина должна быть ${fmt(idealXByY, 3)} м (${signedCm(changeXcm)} см)</div>` +
+        `<div><b>Разрешение:</b> ${Math.round(px)} × ${Math.round(py)} px</div>` +
+        `<div><b>Кабинеты:</b> ${Math.round(cx)} × ${Math.round(cy)} шт · <b>всего ${Math.round(cx * cy)} шт</b></div>` +
+        `<div><b>Режим:</b> свободный размер экрана</div>`;
+      return;
+    }
 
     let idealCmX;
     let idealCmY;
@@ -1065,7 +1122,8 @@
         values,
         lastAxis,
         lastSource,
-        ratioLocked
+        ratioLocked,
+        freeSize
       }));
     } catch (e) {
       // Если браузер запретил localStorage, калькулятор всё равно продолжает работать.
@@ -1100,6 +1158,10 @@
 
       if (typeof state.ratioLocked === 'boolean') {
         ratioLocked = state.ratioLocked;
+      }
+
+      if (typeof state.freeSize === 'boolean') {
+        freeSize = state.freeSize;
       }
 
       return true;
@@ -1368,18 +1430,53 @@
 
   for (const id of ['ratioX', 'ratioY']) {
     f[id].addEventListener('input', () => onInput(() => {
-      if (ratioLocked) {
+      if (aspectConstraintActive()) {
         recalcAfterSetupChange();
+      } else {
+        refreshStatus();
       }
-      // В разблокированном режиме введённое значение просто остаётся
-      // в поле до следующего изменения параметров экрана.
+      // В свободном режиме соотношение служит эталоном для сравнения.
       saveState();
     }));
   }
 
+  freeSizeBtn.addEventListener('click', () => onInput(() => {
+    freeSize = !freeSize;
+
+    // Свободный размер нужен для сравнения с заданным эталоном,
+    // поэтому при включении фиксируем текущее соотношение.
+    if (freeSize) {
+      ratioLocked = true;
+    }
+
+    updateFreeSizeUI();
+
+    const cx = numberOf('countX');
+    const cy = numberOf('countY');
+
+    if (good(cx) && good(cy)) {
+      if (freeSize) {
+        render(Math.round(cx), Math.round(cy));
+      } else {
+        recalcAfterSetupChange();
+      }
+    } else {
+      refreshStatus();
+    }
+
+    saveState();
+  }));
+
   ratioLockBtn.addEventListener('click', () => onInput(() => {
     ratioLocked = !ratioLocked;
-    updateRatioLockUI();
+
+    // Автоматическое соотношение и свободный размер — разные режимы.
+    // Если пользователь разблокирует соотношение, возвращаем обычную связь параметров.
+    if (!ratioLocked && freeSize) {
+      freeSize = false;
+    }
+
+    updateFreeSizeUI();
 
     const cx = numberOf('countX');
     const cy = numberOf('countY');
@@ -1415,7 +1512,8 @@
     lastAxis = 'x';
     lastSource = 'count';
     ratioLocked = true;
-    updateRatioLockUI();
+    freeSize = false;
+    updateFreeSizeUI();
 
     try {
       localStorage.removeItem(storageKey);
@@ -1426,7 +1524,7 @@
   });
 
   const restored = loadState();
-  updateRatioLockUI();
+  updateFreeSizeUI();
 
   if (restored) {
     // Восстанавливаем последнее состояние.
