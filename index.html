@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#000000">
-<title>Калькулятор экрана v1.2</title>
+<title>Калькулятор экрана v1.3</title>
 <style>
   * { box-sizing: border-box; }
 
@@ -241,7 +241,7 @@
 </head>
 <body>
 <main class="app">
-  <h1>Калькулятор экрана <span style="font-size:0.55em;font-weight:400;">v1.2</span></h1>
+  <h1>Калькулятор экрана <span style="font-size:0.55em;font-weight:400;">v1.3</span></h1>
   <div class="subtitle">Изменение значений — сразу, без кнопки «Рассчитать».</div>
 
   <section class="block">
@@ -1034,7 +1034,7 @@
     const deviation = Math.abs(actualRatio - targetRatio) / targetRatio * 100;
 
     status.innerHTML =
-      `<div><b>Необходимое разрешение:</b> ${fmt(idealPxX, 1)} × ${fmt(idealPxY, 1)} px</div>` +
+      `<div><b>Необходимое разрешение:</b> ≈ ${Math.round(idealPxX)} × ${Math.round(idealPxY)} px</div>` +
       `<div><b>Получилось:</b> ${Math.round(px)} × ${Math.round(py)} px</div>` +
       `<div><b>Идеальный размер:</b> ${fmt(idealCmX / 100, 3)} × ${fmt(idealCmY / 100, 3)} м</div>` +
       `<div><b>Фактический размер:</b> ${fmt(actualCmX / 100, 3)} × ${fmt(actualCmY / 100, 3)} м</div>` +
