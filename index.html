@@ -1,0 +1,1351 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<title>Калькулятор экрана v1.0</title>
+<style>
+  * { box-sizing: border-box; }
+
+  :root {
+    --bg: #000;
+    --text: #fff;
+    --muted: #bdbdbd;
+    --line: #fff;
+  }
+
+  html, body {
+    margin: 0;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+    background: var(--bg);
+    color: var(--text);
+    font-family: Arial, Helvetica, sans-serif;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding:
+      max(10px, env(safe-area-inset-top))
+      max(10px, env(safe-area-inset-right))
+      max(18px, env(safe-area-inset-bottom))
+      max(10px, env(safe-area-inset-left));
+  }
+
+  .app {
+    width: 100%;
+    max-width: 760px;
+    margin: 0 auto;
+    overflow: hidden;
+  }
+
+  h1 {
+    margin: 4px 0 6px;
+    font-size: clamp(22px, 6vw, 28px);
+    line-height: 1.05;
+    font-weight: 700;
+  }
+
+  .subtitle {
+    margin: 0 0 16px;
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  .block {
+    border: 1px solid var(--line);
+    padding: 14px;
+    margin-bottom: 14px;
+  }
+
+  .block-title {
+    font-size: 17px;
+    font-weight: 700;
+    margin-bottom: 12px;
+  }
+
+  .section-title {
+    font-size: 13px;
+    font-weight: 700;
+    margin: 14px 0 7px;
+  }
+
+  .section-title:first-child { margin-top: 0; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: clamp(6px, 2.5vw, 10px);
+    width: 100%;
+  }
+
+  .field { min-width: 0; }
+
+  label {
+    display: block;
+    margin: 0 0 5px;
+    font-size: 12px;
+    color: var(--text);
+  }
+
+  .input-wrap { position: relative; }
+
+  input {
+    width: 100%;
+    min-width: 0;
+    height: clamp(44px, 12vw, 48px);
+    border: 1px solid var(--line);
+    border-radius: 0;
+    outline: none;
+    background: #000;
+    color: #fff;
+    padding: 8px 38px 8px 9px;
+    font-size: clamp(16px, 4.8vw, 19px);
+    font-weight: 700;
+  }
+
+  input:focus {
+    border-width: 2px;
+    padding-left: 8px;
+    padding-right: 37px;
+  }
+
+  input::placeholder { color: #666; }
+
+  input[readonly] {
+    cursor: default;
+    opacity: 1;
+    -webkit-text-fill-color: #fff;
+  }
+
+  .unit {
+    position: absolute;
+    top: 50%;
+    right: 9px;
+    transform: translateY(-50%);
+    color: #aaa;
+    font-size: 12px;
+    pointer-events: none;
+  }
+
+  .status {
+    border: 1px solid var(--line);
+    padding: 10px;
+    min-height: 40px;
+    margin-top: 14px;
+    font-size: 12px;
+    line-height: 1.45;
+  }
+
+  .buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-top: 10px;
+  }
+
+  button {
+    min-height: 44px;
+    border: 1px solid var(--line);
+    border-radius: 0;
+    background: #000;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  button:active {
+    background: #fff;
+    color: #000;
+  }
+
+  .ratio-lock {
+    width: 100%;
+    margin-top: 10px;
+  }
+
+  .ratio-lock.unlocked {
+    background: #5a0000;
+    color: #fff;
+    border-color: #fff;
+  }
+
+  .ratio-lock.unlocked:active {
+    background: #7a0000;
+    color: #fff;
+  }
+
+  .note {
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.4;
+    margin-top: 10px;
+  }
+
+  @media (max-width: 390px) {
+    .block { padding: 10px; }
+    .block-title { font-size: 16px; }
+    label { font-size: 11px; }
+    .unit { right: 7px; font-size: 11px; }
+  }
+
+  @media (max-width: 300px) {
+    .grid { grid-template-columns: 1fr; }
+  }
+</style>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png">
+  <link rel="apple-touch-icon" href="./icon-192.png">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+</head>
+<body>
+<main class="app">
+  <h1>Калькулятор экрана <span style="font-size:0.55em;font-weight:400;">v1.0</span></h1>
+  <div class="subtitle">Изменение значений — сразу, без кнопки «Рассчитать».</div>
+
+  <section class="block">
+    <div class="block-title">Один кабинет</div>
+
+    <div class="section-title">Размер кабинета — только см</div>
+    <div class="grid">
+      <div class="field">
+        <label for="cabCmX">X</label>
+        <div class="input-wrap">
+          <input id="cabCmX" inputmode="numeric" pattern="[0-9]*" value="50" placeholder="50">
+          <span class="unit">см</span>
+        </div>
+      </div>
+      <div class="field">
+        <label for="cabCmY">Y</label>
+        <div class="input-wrap">
+          <input id="cabCmY" inputmode="numeric" pattern="[0-9]*" value="50" placeholder="50">
+          <span class="unit">см</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-title">Разрешение кабинета</div>
+    <div class="grid">
+      <div class="field">
+        <label for="cabPxX">X</label>
+        <div class="input-wrap">
+          <input id="cabPxX" inputmode="numeric" pattern="[0-9]*" value="104" placeholder="104">
+          <span class="unit">px</span>
+        </div>
+      </div>
+      <div class="field">
+        <label for="cabPxY">Y</label>
+        <div class="input-wrap">
+          <input id="cabPxY" inputmode="numeric" pattern="[0-9]*" value="104" placeholder="104">
+          <span class="unit">px</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-title">Соотношение сторон экрана</div>
+    <div class="grid">
+      <div class="field">
+        <label for="ratioX">X</label>
+        <div class="input-wrap">
+          <input id="ratioX" inputmode="numeric" pattern="[0-9]*" value="16" placeholder="16">
+          <span class="unit">X</span>
+        </div>
+      </div>
+      <div class="field">
+        <label for="ratioY">Y</label>
+        <div class="input-wrap">
+          <input id="ratioY" inputmode="numeric" pattern="[0-9]*" value="9" placeholder="9">
+          <span class="unit">Y</span>
+        </div>
+      </div>
+    </div>
+
+    <button id="ratioLockBtn" class="ratio-lock" type="button">Разблокировать соотношение</button>
+
+    <div id="ratioNote" class="note">
+      Соотношение зафиксировано и задаётся вручную. Размер, разрешение и количество кабинетов подгоняются под него.
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="block-title">Экран</div>
+
+    <div class="section-title">Размер экрана в метрах — максимум 100 × 100</div>
+    <div class="grid">
+      <div class="field">
+        <label for="metersX">X</label>
+        <div class="input-wrap">
+          <input id="metersX" inputmode="decimal" placeholder="0">
+          <span class="unit">м</span>
+        </div>
+      </div>
+      <div class="field">
+        <label for="metersY">Y</label>
+        <div class="input-wrap">
+          <input id="metersY" inputmode="decimal" placeholder="0">
+          <span class="unit">м</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-title">Разрешение экрана</div>
+    <div class="grid">
+      <div class="field">
+        <label for="pixelsX">X</label>
+        <div class="input-wrap">
+          <input id="pixelsX" inputmode="numeric" pattern="[0-9]*" placeholder="0">
+          <span class="unit">px</span>
+        </div>
+      </div>
+      <div class="field">
+        <label for="pixelsY">Y</label>
+        <div class="input-wrap">
+          <input id="pixelsY" inputmode="numeric" pattern="[0-9]*" placeholder="0">
+          <span class="unit">px</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-title">Количество кабинетов</div>
+    <div class="grid">
+      <div class="field">
+        <label for="countX">X</label>
+        <div class="input-wrap">
+          <input id="countX" inputmode="numeric" pattern="[0-9]*" placeholder="0">
+          <span class="unit">шт</span>
+        </div>
+      </div>
+      <div class="field">
+        <label for="countY">Y</label>
+        <div class="input-wrap">
+          <input id="countY" inputmode="numeric" pattern="[0-9]*" placeholder="0">
+          <span class="unit">шт</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-title">Всего кабинетов</div>
+    <div class="field">
+      <div class="input-wrap">
+        <input id="countTotal" readonly tabindex="-1" placeholder="0">
+        <span class="unit">шт</span>
+      </div>
+    </div>
+
+    <div id="status" class="status">
+      Введите параметры кабинета и целевое соотношение сторон.
+    </div>
+
+    <div class="buttons">
+      <button id="clearScreen" type="button">Очистить экран</button>
+      <button id="clearAll" type="button">Сбросить всё</button>
+    </div>
+  </section>
+</main>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+
+  const f = {
+    cabCmX: $('cabCmX'),
+    cabCmY: $('cabCmY'),
+    cabPxX: $('cabPxX'),
+    cabPxY: $('cabPxY'),
+    ratioX: $('ratioX'),
+    ratioY: $('ratioY'),
+    metersX: $('metersX'),
+    metersY: $('metersY'),
+    pixelsX: $('pixelsX'),
+    pixelsY: $('pixelsY'),
+    countX: $('countX'),
+    countY: $('countY'),
+    countTotal: $('countTotal')
+  };
+
+  const status = $('status');
+  const ratioLockBtn = $('ratioLockBtn');
+  const ratioNote = $('ratioNote');
+
+  let busy = false;
+  let lastAxis = 'x';
+  let lastSource = 'count';
+  let ratioLocked = true;
+  const MAX_SCREEN_METERS = 100;
+
+  function numberOf(id) {
+    const s = f[id].value.trim().replace(',', '.');
+    if (!s) return NaN;
+    const n = Number(s);
+    return Number.isFinite(n) ? n : NaN;
+  }
+
+  function good(n) {
+    return Number.isFinite(n) && n > 0;
+  }
+
+  function fmt(n, decimals = 4) {
+    if (!Number.isFinite(n)) return '';
+    const p = 10 ** decimals;
+    let v = Math.round((n + Number.EPSILON) * p) / p;
+    if (Math.abs(v - Math.round(v)) < 1e-10) v = Math.round(v);
+    return String(v).replace('.', ',');
+  }
+
+  function setValue(id, value, decimals = 4) {
+    if (!Number.isFinite(value)) return;
+    f[id].value = fmt(value, decimals);
+  }
+
+  function maxCountX() {
+    const c = cabinet();
+    if (!good(c.cmX)) return 1;
+    return Math.max(1, Math.floor((MAX_SCREEN_METERS * 100) / c.cmX));
+  }
+
+  function maxCountY() {
+    const c = cabinet();
+    if (!good(c.cmY)) return 1;
+    return Math.max(1, Math.floor((MAX_SCREEN_METERS * 100) / c.cmY));
+  }
+
+  function clampCountX(value) {
+    return Math.min(maxCountX(), Math.max(1, Math.round(value)));
+  }
+
+  function clampCountY(value) {
+    return Math.min(maxCountY(), Math.max(1, Math.round(value)));
+  }
+
+  function cabinet() {
+    return {
+      cmX: numberOf('cabCmX'),
+      cmY: numberOf('cabCmY'),
+      pxX: numberOf('cabPxX'),
+      pxY: numberOf('cabPxY')
+    };
+  }
+
+  function ratio() {
+    return {
+      x: numberOf('ratioX'),
+      y: numberOf('ratioY')
+    };
+  }
+
+  function cabinetReady() {
+    const c = cabinet();
+    return good(c.cmX) && good(c.cmY) &&
+           good(c.pxX) && good(c.pxY);
+  }
+
+  function ratioReady() {
+    const r = ratio();
+    return good(r.x) && good(r.y);
+  }
+
+  function ready() {
+    return cabinetReady() && (!ratioLocked || ratioReady());
+  }
+
+  function gcd(a, b) {
+    a = Math.abs(Math.round(a));
+    b = Math.abs(Math.round(b));
+
+    while (b) {
+      const t = b;
+      b = a % b;
+      a = t;
+    }
+
+    return a || 1;
+  }
+
+  function updateRatioFromActual(px, py) {
+    if (!good(px) || !good(py)) return;
+
+    const d = gcd(px, py);
+    setValue('ratioX', Math.round(px / d), 0);
+    setValue('ratioY', Math.round(py / d), 0);
+  }
+
+  function updateRatioLockUI() {
+    // Соотношение можно редактировать вручную и в заблокированном,
+    // и в разблокированном режиме.
+    f.ratioX.readOnly = false;
+    f.ratioY.readOnly = false;
+
+    if (ratioLocked) {
+      ratioLockBtn.classList.remove('unlocked');
+      ratioLockBtn.textContent = 'Разблокировать соотношение';
+      ratioLockBtn.setAttribute('aria-pressed', 'false');
+      ratioNote.textContent =
+        'Соотношение зафиксировано и задаётся вручную. Размер, разрешение и количество кабинетов подгоняются под него.';
+    } else {
+      ratioLockBtn.classList.add('unlocked');
+      ratioLockBtn.textContent = 'Заблокировать соотношение';
+      ratioLockBtn.setAttribute('aria-pressed', 'true');
+      ratioNote.textContent =
+        'Соотношение разблокировано: его можно менять вручную, а при изменении размера, разрешения или количества кабинетов оно автоматически обновляется по фактическому экрану.';
+    }
+  }
+
+  function relativeRatioError(cx, cy) {
+    const c = cabinet();
+    const r = ratio();
+
+    const actual = (cx * c.pxX) / (cy * c.pxY);
+    const target = r.x / r.y;
+
+    return Math.abs(actual - target) / target;
+  }
+
+  // При фиксированном X выбираем ЦЕЛОЕ Y,
+  // дающее максимально близкое разрешение к целевому соотношению.
+  function bestYForX(cx) {
+    const c = cabinet();
+    const r = ratio();
+
+    const ideal = (cx * c.pxX * r.y) / (c.pxY * r.x);
+
+    const candidates = new Set([
+      clampCountY(Math.floor(ideal)),
+      clampCountY(Math.ceil(ideal)),
+      clampCountY(Math.round(ideal))
+    ]);
+
+    let best = 1;
+    let bestErr = Infinity;
+
+    for (const cy of candidates) {
+      const err = relativeRatioError(cx, cy);
+      if (err < bestErr - 1e-12 || (Math.abs(err - bestErr) < 1e-12 && cy < best)) {
+        best = cy;
+        bestErr = err;
+      }
+    }
+
+    return best;
+  }
+
+  // При фиксированном Y выбираем ЦЕЛОЕ X.
+  function bestXForY(cy) {
+    const c = cabinet();
+    const r = ratio();
+
+    const ideal = (cy * c.pxY * r.x) / (c.pxX * r.y);
+
+    const candidates = new Set([
+      clampCountX(Math.floor(ideal)),
+      clampCountX(Math.ceil(ideal)),
+      clampCountX(Math.round(ideal))
+    ]);
+
+    let best = 1;
+    let bestErr = Infinity;
+
+    for (const cx of candidates) {
+      const err = relativeRatioError(cx, cy);
+      if (err < bestErr - 1e-12 || (Math.abs(err - bestErr) < 1e-12 && cx < best)) {
+        best = cx;
+        bestErr = err;
+      }
+    }
+
+    return best;
+  }
+
+  function renderZero() {
+    setValue('countX', 0, 0);
+    setValue('countY', 0, 0);
+    setValue('countTotal', 0, 0);
+    setValue('metersX', 0, 0);
+    setValue('metersY', 0, 0);
+    setValue('pixelsX', 0, 0);
+    setValue('pixelsY', 0, 0);
+
+    if (!ratioLocked) {
+      // При нулевом экране фактического соотношения сторон нет,
+      // поэтому оставляем последнее значение соотношения без изменений.
+    }
+
+    status.innerHTML =
+      `<div><b>Экран:</b> 0 кабинетов</div>` +
+      `<div><b>Размер:</b> 0 × 0 м</div>` +
+      `<div><b>Разрешение:</b> 0 × 0 px</div>` +
+      `<div><b>Всего кабинетов:</b> 0 шт</div>`;
+  }
+
+  function render(cx, cy, preserveId = '') {
+    if (!ready()) return false;
+
+    const c = cabinet();
+
+    cx = clampCountX(cx);
+    cy = clampCountY(cy);
+
+    const screenCmX = cx * c.cmX;
+    const screenCmY = cy * c.cmY;
+    const px = cx * c.pxX;
+    const py = cy * c.pxY;
+
+    if (preserveId !== 'countX') setValue('countX', cx, 0);
+    if (preserveId !== 'countY') setValue('countY', cy, 0);
+    setValue('countTotal', cx * cy, 0);
+    if (preserveId !== 'metersX') setValue('metersX', screenCmX / 100, 3);
+    if (preserveId !== 'metersY') setValue('metersY', screenCmY / 100, 3);
+    if (preserveId !== 'pixelsX') setValue('pixelsX', px, 0);
+    if (preserveId !== 'pixelsY') setValue('pixelsY', py, 0);
+
+    if (!ratioLocked) {
+      updateRatioFromActual(px, py);
+    }
+
+    refreshStatus(cx, cy, px, py);
+    return true;
+  }
+
+  function fromMeters(axis) {
+    if (!cabinetReady()) return false;
+    if (ratioLocked && !ratioReady()) return false;
+
+    const c = cabinet();
+
+    if (axis === 'x') {
+      let mx = numberOf('metersX');
+      if (!good(mx)) return false;
+
+      if (mx > MAX_SCREEN_METERS) {
+        mx = MAX_SCREEN_METERS;
+        f.metersX.value = fmt(MAX_SCREEN_METERS, 0);
+      }
+
+      const cx = clampCountX((mx * 100) / c.cmX);
+
+      let cy;
+      if (ratioLocked) {
+        cy = bestYForX(cx);
+      } else {
+        cy = numberOf('countY');
+        if (!good(cy)) {
+          const my = numberOf('metersY');
+          cy = good(my) ? clampCountY((my * 100) / c.cmY) : 1;
+        }
+        cy = clampCountY(cy);
+      }
+
+      lastAxis = 'x';
+      lastSource = 'meters';
+      return render(cx, cy, 'metersX');
+    }
+
+    let my = numberOf('metersY');
+    if (!good(my)) return false;
+
+    if (my > MAX_SCREEN_METERS) {
+      my = MAX_SCREEN_METERS;
+      f.metersY.value = fmt(MAX_SCREEN_METERS, 0);
+    }
+
+    const cy = clampCountY((my * 100) / c.cmY);
+
+    let cx;
+    if (ratioLocked) {
+      cx = bestXForY(cy);
+    } else {
+      cx = numberOf('countX');
+      if (!good(cx)) {
+        const mx = numberOf('metersX');
+        cx = good(mx) ? clampCountX((mx * 100) / c.cmX) : 1;
+      }
+      cx = clampCountX(cx);
+    }
+
+    lastAxis = 'y';
+    lastSource = 'meters';
+    return render(cx, cy, 'metersY');
+  }
+  function fromPixels(axis) {
+    if (!cabinetReady()) return false;
+    if (ratioLocked && !ratioReady()) return false;
+
+    const c = cabinet();
+
+    if (axis === 'x') {
+      const px = numberOf('pixelsX');
+      if (!good(px)) return false;
+
+      // Разрешение экрана физически может быть только кратно
+      // разрешению одного кабинета.
+      const cx = clampCountX(px / c.pxX);
+
+      let cy;
+      if (ratioLocked) {
+        cy = bestYForX(cx);
+      } else {
+        cy = numberOf('countY');
+
+        if (!good(cy)) {
+          const py = numberOf('pixelsY');
+          cy = good(py) ? clampCountY(py / c.pxY) : 1;
+        }
+
+        cy = clampCountY(cy);
+      }
+
+      lastAxis = 'x';
+      lastSource = 'pixels';
+      return render(cx, cy, 'pixelsX');
+    }
+
+    const py = numberOf('pixelsY');
+    if (!good(py)) return false;
+
+    const cy = clampCountY(py / c.pxY);
+
+    let cx;
+    if (ratioLocked) {
+      cx = bestXForY(cy);
+    } else {
+      cx = numberOf('countX');
+
+      if (!good(cx)) {
+        const px = numberOf('pixelsX');
+        cx = good(px) ? Math.max(1, Math.round(px / c.pxX)) : 1;
+      }
+
+      cx = clampCountX(cx);
+    }
+
+    lastAxis = 'y';
+    lastSource = 'pixels';
+    return render(cx, cy, 'pixelsY');
+  }
+
+  function fromCount(axis) {
+    if (!cabinetReady()) return false;
+    if (ratioLocked && !ratioReady()) return false;
+
+    if (axis === 'x') {
+      const raw = numberOf('countX');
+
+      if (raw === 0) {
+        lastAxis = 'x';
+        lastSource = 'count';
+        renderZero();
+        return true;
+      }
+
+      if (!good(raw)) return false;
+
+      const cx = clampCountX(raw);
+
+      let cy;
+      if (ratioLocked) {
+        cy = bestYForX(cx);
+      } else {
+        cy = numberOf('countY');
+
+        if (cy === 0) {
+          renderZero();
+          return true;
+        }
+
+        cy = good(cy) ? clampCountY(cy) : 1;
+      }
+
+      lastAxis = 'x';
+      lastSource = 'count';
+      return render(cx, cy, 'countX');
+    }
+
+    const raw = numberOf('countY');
+
+    if (raw === 0) {
+      lastAxis = 'y';
+      lastSource = 'count';
+      renderZero();
+      return true;
+    }
+
+    if (!good(raw)) return false;
+
+    const cy = clampCountY(raw);
+
+    let cx;
+    if (ratioLocked) {
+      cx = bestXForY(cy);
+    } else {
+      cx = numberOf('countX');
+
+      if (cx === 0) {
+        renderZero();
+        return true;
+      }
+
+      cx = good(cx) ? clampCountX(cx) : 1;
+    }
+
+    lastAxis = 'y';
+    lastSource = 'count';
+    return render(cx, cy, 'countY');
+  }
+
+  function findBestInitialGrid() {
+    // Если задан только ratio, ищем небольшую целую сетку,
+    // максимально близкую к целевому разрешению.
+    let best = null;
+
+    for (let cx = 1; cx <= Math.min(200, maxCountX()); cx++) {
+      const cy = bestYForX(cx);
+      const err = relativeRatioError(cx, cy);
+      const total = cx * cy;
+
+      if (
+        best === null ||
+        err < best.err - 1e-12 ||
+        (Math.abs(err - best.err) < 1e-12 && total < best.total)
+      ) {
+        best = { cx, cy, err, total };
+      }
+
+      if (err < 1e-12) break;
+    }
+
+    return best;
+  }
+
+  function recalcAfterSetupChange() {
+    if (!cabinetReady()) {
+      refreshStatus();
+      return;
+    }
+
+    let cx = numberOf('countX');
+    let cy = numberOf('countY');
+
+    if (!ratioLocked) {
+      if (good(cx) && good(cy)) {
+        render(Math.round(cx), Math.round(cy));
+        return;
+      }
+
+      refreshStatus();
+      return;
+    }
+
+    if (!ratioReady()) {
+      refreshStatus();
+      return;
+    }
+
+    if (lastAxis === 'x' && good(cx)) {
+      cx = clampCountX(cx);
+      cy = bestYForX(cx);
+      render(cx, cy);
+      return;
+    }
+
+    if (lastAxis === 'y' && good(cy)) {
+      cy = clampCountY(cy);
+      cx = bestXForY(cy);
+      render(cx, cy);
+      return;
+    }
+
+    const grid = findBestInitialGrid();
+    if (grid) render(grid.cx, grid.cy);
+  }
+  function signedCm(value) {
+    if (!Number.isFinite(value)) return '0';
+    const rounded = Math.round(value * 10) / 10;
+    if (Math.abs(rounded) < 0.05) return '0';
+    return (rounded > 0 ? '+' : '') + fmt(rounded, 1);
+  }
+
+  function refreshStatus(cx = NaN, cy = NaN, px = NaN, py = NaN) {
+    if (!cabinetReady()) {
+      status.textContent = 'Введите размер и разрешение кабинета.';
+      return;
+    }
+
+    if (ratioLocked && !ratioReady()) {
+      status.textContent = 'Введите целевое соотношение сторон.';
+      return;
+    }
+
+    if (!good(cx)) cx = numberOf('countX');
+    if (!good(cy)) cy = numberOf('countY');
+    if (!good(px)) px = numberOf('pixelsX');
+    if (!good(py)) py = numberOf('pixelsY');
+
+    if (!good(cx) || !good(cy) || !good(px) || !good(py)) {
+      status.textContent = 'Введите размер экрана, разрешение экрана или количество кабинетов по X или Y.';
+      return;
+    }
+
+    const c = cabinet();
+    const r = ratio();
+
+    const actualCmX = cx * c.cmX;
+    const actualCmY = cy * c.cmY;
+
+    let idealCmX;
+    let idealCmY;
+    let idealPxX;
+    let idealPxY;
+
+    // Идеал считаем относительно той оси, которую пользователь менял последней.
+    // Эта ось остаётся базовой, вторая подстраивается точно под заданное соотношение.
+    if (lastAxis === 'y') {
+      idealCmY = actualCmY;
+      idealCmX = actualCmY * r.x / r.y;
+
+      idealPxY = py;
+      idealPxX = py * r.x / r.y;
+    } else {
+      idealCmX = actualCmX;
+      idealCmY = actualCmX * r.y / r.x;
+
+      idealPxX = px;
+      idealPxY = px * r.y / r.x;
+    }
+
+    const diffCmX = actualCmX - idealCmX;
+    const diffCmY = actualCmY - idealCmY;
+
+    const actualRatio = px / py;
+    const targetRatio = r.x / r.y;
+    const deviation = Math.abs(actualRatio - targetRatio) / targetRatio * 100;
+
+    status.innerHTML =
+      `<div><b>Необходимое разрешение:</b> ${fmt(idealPxX, 1)} × ${fmt(idealPxY, 1)} px</div>` +
+      `<div><b>Получилось:</b> ${Math.round(px)} × ${Math.round(py)} px</div>` +
+      `<div><b>Идеальный размер:</b> ${fmt(idealCmX / 100, 3)} × ${fmt(idealCmY / 100, 3)} м</div>` +
+      `<div><b>Фактический размер:</b> ${fmt(actualCmX / 100, 3)} × ${fmt(actualCmY / 100, 3)} м</div>` +
+      `<div><b>Разница от идеального:</b> X ${signedCm(diffCmX)} см · Y ${signedCm(diffCmY)} см</div>` +
+      `<div><b>Кабинеты:</b> ${Math.round(cx)} × ${Math.round(cy)} шт · ` +
+      `<b>всего ${Math.round(cx * cy)} шт</b> · ` +
+      `отклонение по соотношению ${fmt(deviation, 2)}%</div>` +
+      `<div><b>Соотношение:</b> ${ratioLocked ? 'зафиксировано' : 'автоматически рассчитано'}</div>`;
+  }
+
+  function onInput(fn) {
+    if (busy) return;
+    busy = true;
+    try { fn(); }
+    finally { busy = false; }
+  }
+
+  const storageKey = 'screenCalculatorState_v7_max100m';
+
+  function saveState() {
+    try {
+      const values = {};
+      for (const id of Object.keys(f)) {
+        values[id] = f[id].value;
+      }
+
+      localStorage.setItem(storageKey, JSON.stringify({
+        values,
+        lastAxis,
+        lastSource,
+        ratioLocked
+      }));
+    } catch (e) {
+      // Если браузер запретил localStorage, калькулятор всё равно продолжает работать.
+    }
+  }
+
+  function loadState() {
+    try {
+      const raw = localStorage.getItem(storageKey);
+      if (!raw) return false;
+
+      const state = JSON.parse(raw);
+      if (!state || !state.values) return false;
+
+      for (const id of Object.keys(f)) {
+        if (Object.prototype.hasOwnProperty.call(state.values, id)) {
+          f[id].value = state.values[id];
+        }
+      }
+
+      if (state.lastAxis === 'x' || state.lastAxis === 'y') {
+        lastAxis = state.lastAxis;
+      }
+
+      if (
+        state.lastSource === 'meters' ||
+        state.lastSource === 'pixels' ||
+        state.lastSource === 'count'
+      ) {
+        lastSource = state.lastSource;
+      }
+
+      if (typeof state.ratioLocked === 'boolean') {
+        ratioLocked = state.ratioLocked;
+      }
+
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // Только размер экрана X/Y допускает дробное значение через запятую.
+  const meterDecimalIds = ['metersX', 'metersY'];
+
+  // Все остальные редактируемые поля — только целые цифры 0–9.
+  const digitOnlyIds = [
+    'cabCmX', 'cabCmY',
+    'cabPxX', 'cabPxY',
+    'ratioX', 'ratioY',
+    'pixelsX', 'pixelsY',
+    'countX', 'countY'
+  ];
+
+  function validMeterValue(value) {
+    // Пустое значение допустимо во время редактирования.
+    if (value === '') return true;
+
+    // Допустимые варианты:
+    // 4
+    // 4,
+    // 4.
+    // 4,5
+    // 4.5
+    // 0,75
+    // 0.75
+    //
+    // Недопустимые:
+    // ,5
+    // .5
+    // 4,,5
+    // 4..5
+    // 4,5.2
+    // буквы и другие символы
+    return /^\d+([,.]\d*)?$/.test(value);
+  }
+
+  function valueAfterInsert(el, text) {
+    const start = el.selectionStart ?? el.value.length;
+    const end = el.selectionEnd ?? el.value.length;
+    return el.value.slice(0, start) + text + el.value.slice(end);
+  }
+
+  for (const id of meterDecimalIds) {
+    const el = f[id];
+
+    el.addEventListener('beforeinput', (event) => {
+      if (
+        event.inputType &&
+        (
+          event.inputType.startsWith('delete') ||
+          event.inputType === 'historyUndo' ||
+          event.inputType === 'historyRedo'
+        )
+      ) {
+        return;
+      }
+
+      if (event.data === null) return;
+
+      const next = valueAfterInsert(el, event.data);
+
+      // Блокируем ввод, если точка/запятая стоит в недопустимом месте,
+      // если пытаются ввести второй разделитель или любой другой символ.
+      if (!validMeterValue(next)) {
+        event.preventDefault();
+      }
+    });
+
+    el.addEventListener('input', () => {
+      // Резервная проверка для браузеров, которые могут обходить beforeinput.
+      let value = el.value;
+
+      // Разрешаем только цифры, точку и запятую.
+      value = value.replace(/[^0-9,.]/g, '');
+
+      // Разделитель не может быть первым.
+      value = value.replace(/^[,.]+/, '');
+
+      // Разрешаем только один десятичный разделитель: либо точку, либо запятую.
+      const commaPos = value.indexOf(',');
+      const dotPos = value.indexOf('.');
+      let firstSep = -1;
+
+      if (commaPos !== -1 && dotPos !== -1) {
+        firstSep = Math.min(commaPos, dotPos);
+      } else {
+        firstSep = Math.max(commaPos, dotPos);
+      }
+
+      if (firstSep !== -1) {
+        value =
+          value.slice(0, firstSep + 1) +
+          value.slice(firstSep + 1).replace(/[,.]/g, '');
+      }
+
+      // Если после очистки значение всё равно некорректно,
+      // удаляем последний проблемный символ.
+      while (value && !validMeterValue(value)) {
+        value = value.slice(0, -1);
+      }
+
+      el.value = value;
+
+      const numeric = Number(value.replace(',', '.'));
+      if (Number.isFinite(numeric) && numeric > MAX_SCREEN_METERS) {
+        el.value = String(MAX_SCREEN_METERS);
+      }
+    });
+
+    el.addEventListener('paste', (event) => {
+      const text = (event.clipboardData || window.clipboardData).getData('text');
+
+      // При вставке разрешаем корректный формат с точкой или запятой.
+      if (!/^\d+([,.]\d+)?$/.test(text)) {
+        event.preventDefault();
+        return;
+      }
+
+      const next = valueAfterInsert(el, text);
+      const numeric = Number(next.replace(',', '.'));
+
+      if (
+        !validMeterValue(next) ||
+        (Number.isFinite(numeric) && numeric > MAX_SCREEN_METERS)
+      ) {
+        event.preventDefault();
+      }
+    });
+  }
+
+  for (const id of digitOnlyIds) {
+    const el = f[id];
+
+    el.addEventListener('beforeinput', (event) => {
+      if (
+        event.inputType &&
+        (
+          event.inputType.startsWith('delete') ||
+          event.inputType === 'historyUndo' ||
+          event.inputType === 'historyRedo'
+        )
+      ) {
+        return;
+      }
+
+      if (event.data !== null && /[^0-9]/.test(event.data)) {
+        event.preventDefault();
+      }
+    });
+
+    el.addEventListener('input', () => {
+      const clean = el.value.replace(/[^0-9]/g, '');
+      if (el.value !== clean) {
+        el.value = clean;
+      }
+    });
+
+    el.addEventListener('paste', (event) => {
+      const text = (event.clipboardData || window.clipboardData).getData('text');
+
+      if (!/^\d+$/.test(text)) {
+        event.preventDefault();
+      }
+    });
+  }
+
+  f.metersX.addEventListener('input', () => onInput(() => {
+    fromMeters('x');
+    saveState();
+  }));
+
+  f.metersY.addEventListener('input', () => onInput(() => {
+    fromMeters('y');
+    saveState();
+  }));
+
+  f.pixelsX.addEventListener('input', () => onInput(() => {
+    fromPixels('x');
+    saveState();
+  }));
+
+  f.pixelsY.addEventListener('input', () => onInput(() => {
+    fromPixels('y');
+    saveState();
+  }));
+
+  f.countX.addEventListener('input', () => onInput(() => {
+    fromCount('x');
+    saveState();
+  }));
+
+  f.countY.addEventListener('input', () => onInput(() => {
+    fromCount('y');
+    saveState();
+  }));
+
+  // Пока пользователь печатает, активное поле не перезаписывается расчётом.
+  // После выхода из поля показываем фактически достижимое значение.
+  f.metersX.addEventListener('blur', () => onInput(() => {
+    const cx = numberOf('countX');
+    const cy = numberOf('countY');
+    if (good(cx) && good(cy)) render(Math.round(cx), Math.round(cy));
+    saveState();
+  }));
+
+  f.metersY.addEventListener('blur', () => onInput(() => {
+    const cx = numberOf('countX');
+    const cy = numberOf('countY');
+    if (good(cx) && good(cy)) render(Math.round(cx), Math.round(cy));
+    saveState();
+  }));
+
+  f.pixelsX.addEventListener('blur', () => onInput(() => {
+    const cx = numberOf('countX');
+    const cy = numberOf('countY');
+    if (good(cx) && good(cy)) render(Math.round(cx), Math.round(cy));
+    saveState();
+  }));
+
+  f.pixelsY.addEventListener('blur', () => onInput(() => {
+    const cx = numberOf('countX');
+    const cy = numberOf('countY');
+    if (good(cx) && good(cy)) render(Math.round(cx), Math.round(cy));
+    saveState();
+  }));
+
+  f.countX.addEventListener('blur', () => onInput(() => {
+    const cx = numberOf('countX');
+    const cy = numberOf('countY');
+
+    if (cx === 0 || cy === 0) {
+      renderZero();
+    } else if (good(cx) && good(cy)) {
+      render(Math.round(cx), Math.round(cy));
+    }
+
+    saveState();
+  }));
+
+  f.countY.addEventListener('blur', () => onInput(() => {
+    const cx = numberOf('countX');
+    const cy = numberOf('countY');
+
+    if (cx === 0 || cy === 0) {
+      renderZero();
+    } else if (good(cx) && good(cy)) {
+      render(Math.round(cx), Math.round(cy));
+    }
+
+    saveState();
+  }));
+
+  for (const id of ['cabCmX', 'cabCmY', 'cabPxX', 'cabPxY']) {
+    f[id].addEventListener('input', () => onInput(() => {
+      recalcAfterSetupChange();
+      saveState();
+    }));
+  }
+
+  for (const id of ['ratioX', 'ratioY']) {
+    f[id].addEventListener('input', () => onInput(() => {
+      if (ratioLocked) {
+        recalcAfterSetupChange();
+      }
+      // В разблокированном режиме введённое значение просто остаётся
+      // в поле до следующего изменения параметров экрана.
+      saveState();
+    }));
+  }
+
+  ratioLockBtn.addEventListener('click', () => onInput(() => {
+    ratioLocked = !ratioLocked;
+    updateRatioLockUI();
+
+    const cx = numberOf('countX');
+    const cy = numberOf('countY');
+
+    if (!ratioLocked) {
+      // После разблокировки текущее фактическое разрешение
+      // сразу становится источником соотношения сторон.
+      if (good(cx) && good(cy)) {
+        render(Math.round(cx), Math.round(cy));
+      } else {
+        refreshStatus();
+      }
+    } else {
+      // При повторной блокировке текущее автоматически рассчитанное
+      // соотношение становится новым фиксированным целевым значением.
+      recalcAfterSetupChange();
+    }
+
+    saveState();
+  }));
+
+  $('clearScreen').addEventListener('click', () => {
+    for (const id of ['metersX', 'metersY', 'pixelsX', 'pixelsY', 'countX', 'countY', 'countTotal']) {
+      f[id].value = '';
+    }
+    refreshStatus();
+    saveState();
+  });
+
+  $('clearAll').addEventListener('click', () => {
+    for (const id of Object.keys(f)) f[id].value = '';
+    lastAxis = 'x';
+    lastSource = 'count';
+    ratioLocked = true;
+    updateRatioLockUI();
+
+    try {
+      localStorage.removeItem(storageKey);
+    } catch (e) {}
+
+    refreshStatus();
+  });
+
+  const restored = loadState();
+  updateRatioLockUI();
+
+  if (restored) {
+    // Восстанавливаем последнее состояние.
+    const restoredX = numberOf('countX');
+    const restoredY = numberOf('countY');
+
+    if (restoredX === 0 || restoredY === 0) {
+      renderZero();
+    } else {
+      if (good(restoredX) && good(restoredY)) {
+        setValue('countTotal', Math.round(restoredX) * Math.round(restoredY), 0);
+      }
+      refreshStatus();
+    }
+  } else {
+    // Первый запуск: используются значения по умолчанию
+    // 50×50 см, 104×104 px и 16:9.
+    recalcAfterSetupChange();
+    saveState();
+  }
+})();
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./service-worker.js').catch(() => {});
+  });
+}
+</script>
+
+</body>
+</html>
