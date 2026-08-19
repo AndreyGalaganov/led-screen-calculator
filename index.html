@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#000000">
-<title>Калькулятор экрана v1.4</title>
+<title>Калькулятор экрана v1.6</title>
 <style>
   * { box-sizing: border-box; }
 
@@ -186,6 +186,37 @@
     margin-top: 10px;
   }
 
+  .anchor-panel {
+    display: none;
+    margin-top: 12px;
+  }
+
+  .anchor-panel.visible {
+    display: block;
+  }
+
+  .anchor-title {
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+
+  .anchor-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .anchor-btn {
+    min-height: 40px;
+  }
+
+  .anchor-btn.active {
+    background: #5a0000;
+    color: #fff;
+    border-color: #fff;
+  }
+
   .port-table-wrap {
     width: 100%;
     overflow-x: auto;
@@ -241,7 +272,7 @@
 </head>
 <body>
 <main class="app">
-  <h1>Калькулятор экрана <span style="font-size:0.55em;font-weight:400;">v1.4</span></h1>
+  <h1>Калькулятор экрана <span style="font-size:0.55em;font-weight:400;">v1.6</span></h1>
   <div class="subtitle">Изменение значений — сразу, без кнопки «Рассчитать».</div>
 
   <section class="block">
@@ -332,6 +363,17 @@
     <button id="freeSizeBtn" class="ratio-lock" type="button">Освободить размер экрана</button>
     <div id="freeSizeNote" class="note">
       Размер экрана привязан к целевому соотношению сторон: изменение одной оси подгоняет вторую.
+    </div>
+
+    <div id="anchorPanel" class="anchor-panel">
+      <div class="anchor-title">Ориентир для сравнения с соотношением</div>
+      <div class="anchor-buttons">
+        <button id="anchorXBtn" class="anchor-btn active" type="button" aria-pressed="true">Ориентир X</button>
+        <button id="anchorYBtn" class="anchor-btn" type="button" aria-pressed="false">Ориентир Y</button>
+      </div>
+      <div id="anchorNote" class="note">
+        X считается неизменяемой стороной. Калькулятор покажет, каким должен быть Y.
+      </div>
     </div>
 
     <div class="section-title">Разрешение экрана</div>
@@ -462,12 +504,17 @@
   const ratioNote = $('ratioNote');
   const freeSizeBtn = $('freeSizeBtn');
   const freeSizeNote = $('freeSizeNote');
+  const anchorPanel = $('anchorPanel');
+  const anchorXBtn = $('anchorXBtn');
+  const anchorYBtn = $('anchorYBtn');
+  const anchorNote = $('anchorNote');
 
   let busy = false;
   let lastAxis = 'x';
   let lastSource = 'count';
   let ratioLocked = true;
   let freeSize = false;
+  let anchorAxis = 'x';
   const MAX_SCREEN_METERS = 100;
 
   function numberOf(id) {
@@ -613,13 +660,27 @@
     }
   }
 
+  function updateAnchorUI() {
+    anchorPanel.classList.toggle('visible', freeSize);
+
+    const xActive = anchorAxis === 'x';
+    anchorXBtn.classList.toggle('active', xActive);
+    anchorYBtn.classList.toggle('active', !xActive);
+    anchorXBtn.setAttribute('aria-pressed', xActive ? 'true' : 'false');
+    anchorYBtn.setAttribute('aria-pressed', xActive ? 'false' : 'true');
+
+    anchorNote.textContent = xActive
+      ? 'X считается неизменяемой стороной. Калькулятор покажет, каким должен быть Y.'
+      : 'Y считается неизменяемой стороной. Калькулятор покажет, каким должен быть X.';
+  }
+
   function updateFreeSizeUI() {
     if (freeSize) {
       freeSizeBtn.classList.add('unlocked');
       freeSizeBtn.textContent = 'Привязать размер к соотношению';
       freeSizeBtn.setAttribute('aria-pressed', 'true');
       freeSizeNote.textContent =
-        'Свободный размер: X и Y задаются независимо. Целевое соотношение используется только для сравнения и расчёта отклонения.';
+        'Свободный размер: X и Y задаются независимо. Выберите X или Y как неизменяемый ориентир для сравнения с целевым соотношением.';
     } else {
       freeSizeBtn.classList.remove('unlocked');
       freeSizeBtn.textContent = 'Освободить размер экрана';
@@ -628,6 +689,7 @@
         'Размер экрана привязан к целевому соотношению сторон: изменение одной оси подгоняет вторую.';
     }
 
+    updateAnchorUI();
     updateRatioLockUI();
   }
 
@@ -1040,22 +1102,45 @@
     if (freeSize && ratioReady()) {
       const actualMetersX = actualCmX / 100;
       const actualMetersY = actualCmY / 100;
-      const targetRatio = r.x / r.y;
-      const actualRatio = actualMetersX / actualMetersY;
-      const deviation = Math.abs(actualRatio - targetRatio) / targetRatio * 100;
 
-      const idealYByX = actualMetersX * r.y / r.x;
-      const idealXByY = actualMetersY * r.x / r.y;
-      const changeYcm = (idealYByX - actualMetersY) * 100;
-      const changeXcm = (idealXByY - actualMetersX) * 100;
+      let anchorText;
+      let requiredText;
+      let currentText;
+      let actionText;
+
+      if (anchorAxis === 'y') {
+        const idealX = actualMetersY * r.x / r.y;
+        const deltaCm = (actualMetersX - idealX) * 100;
+        anchorText = `Y = ${fmt(actualMetersY, 3)} м`;
+        requiredText = `X по эталону: ${fmt(idealX, 3)} м`;
+        currentText = `Фактический X: ${fmt(actualMetersX, 3)} м`;
+
+        if (Math.abs(deltaCm) < 0.05) {
+          actionText = 'Разница X: 0 см';
+        } else {
+          actionText = `Разница X: ${deltaCm > 0 ? '+' : '−'}${fmt(Math.abs(deltaCm), 1)} см`;
+        }
+      } else {
+        const idealY = actualMetersX * r.y / r.x;
+        const deltaCm = (actualMetersY - idealY) * 100;
+        anchorText = `X = ${fmt(actualMetersX, 3)} м`;
+        requiredText = `Y по эталону: ${fmt(idealY, 3)} м`;
+        currentText = `Фактический Y: ${fmt(actualMetersY, 3)} м`;
+
+        if (Math.abs(deltaCm) < 0.05) {
+          actionText = 'Разница Y: 0 см';
+        } else {
+          actionText = `Разница Y: ${deltaCm > 0 ? '+' : '−'}${fmt(Math.abs(deltaCm), 1)} см`;
+        }
+      }
 
       status.innerHTML =
         `<div><b>Фактический размер:</b> ${fmt(actualMetersX, 3)} × ${fmt(actualMetersY, 3)} м</div>` +
-        `<div><b>Фактическое соотношение:</b> ${fmt(actualRatio, 4)} : 1</div>` +
         `<div><b>Целевое соотношение:</b> ${Math.round(r.x)}:${Math.round(r.y)}</div>` +
-        `<div><b>Отклонение от ${Math.round(r.x)}:${Math.round(r.y)}:</b> ${fmt(deviation, 2)}%</div>` +
-        `<div><b>Если сохранить ширину ${fmt(actualMetersX, 3)} м:</b> высота должна быть ${fmt(idealYByX, 3)} м (${signedCm(changeYcm)} см)</div>` +
-        `<div><b>Если сохранить высоту ${fmt(actualMetersY, 3)} м:</b> ширина должна быть ${fmt(idealXByY, 3)} м (${signedCm(changeXcm)} см)</div>` +
+        `<div><b>Ориентир:</b> ${anchorText}</div>` +
+        `<div><b>${requiredText}</b></div>` +
+        `<div><b>${currentText}</b></div>` +
+        `<div><b>${actionText}</b></div>` +
         `<div><b>Разрешение:</b> ${Math.round(px)} × ${Math.round(py)} px</div>` +
         `<div><b>Кабинеты:</b> ${Math.round(cx)} × ${Math.round(cy)} шт · <b>всего ${Math.round(cx * cy)} шт</b></div>` +
         `<div><b>Режим:</b> свободный размер экрана</div>`;
@@ -1123,7 +1208,8 @@
         lastAxis,
         lastSource,
         ratioLocked,
-        freeSize
+        freeSize,
+        anchorAxis
       }));
     } catch (e) {
       // Если браузер запретил localStorage, калькулятор всё равно продолжает работать.
@@ -1162,6 +1248,10 @@
 
       if (typeof state.freeSize === 'boolean') {
         freeSize = state.freeSize;
+      }
+
+      if (state.anchorAxis === 'x' || state.anchorAxis === 'y') {
+        anchorAxis = state.anchorAxis;
       }
 
       return true;
@@ -1440,6 +1530,20 @@
     }));
   }
 
+  anchorXBtn.addEventListener('click', () => onInput(() => {
+    anchorAxis = 'x';
+    updateAnchorUI();
+    refreshStatus();
+    saveState();
+  }));
+
+  anchorYBtn.addEventListener('click', () => onInput(() => {
+    anchorAxis = 'y';
+    updateAnchorUI();
+    refreshStatus();
+    saveState();
+  }));
+
   freeSizeBtn.addEventListener('click', () => onInput(() => {
     freeSize = !freeSize;
 
@@ -1513,6 +1617,7 @@
     lastSource = 'count';
     ratioLocked = true;
     freeSize = false;
+    anchorAxis = 'x';
     updateFreeSizeUI();
 
     try {
