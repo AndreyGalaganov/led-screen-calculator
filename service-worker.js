@@ -1,4 +1,4 @@
-const CACHE_NAME = 'screen-calculator-v1.7-pwa-1';
+const CACHE_NAME = 'screen-calculator-v1.8-pwa-1';
 const APP_SHELL = [
   './',
   './index.html',

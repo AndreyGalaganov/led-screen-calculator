@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#000000">
-<title>Калькулятор экрана v1.7</title>
+<title>Калькулятор экрана v1.8</title>
 <style>
   * { box-sizing: border-box; }
 
@@ -344,6 +344,47 @@
     margin-top: 4px;
   }
 
+  .summary-cabinet {
+    margin-top: 18px;
+    border: 1px solid var(--line);
+    padding: 14px 16px;
+  }
+
+  .summary-cabinet-title {
+    font-size: clamp(16px, 3.2vw, 22px);
+    font-weight: 700;
+    margin-bottom: 10px;
+  }
+
+  .summary-cabinet-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px 18px;
+  }
+
+  .summary-cabinet-item {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .summary-cabinet-item span {
+    color: var(--muted);
+    font-size: clamp(12px, 2.6vw, 16px);
+  }
+
+  .summary-cabinet-item strong {
+    font-size: clamp(17px, 3.7vw, 24px);
+    line-height: 1.25;
+    white-space: nowrap;
+  }
+
+  @media (max-width: 430px) {
+    .summary-cabinet-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+
   .summary-pixels {
     margin-top: 18px;
     border: 1px solid var(--line);
@@ -412,7 +453,7 @@
 </head>
 <body>
 <main class="app">
-  <h1>Калькулятор экрана <span style="font-size:0.55em;font-weight:400;">v1.7</span></h1>
+  <h1>Калькулятор экрана <span style="font-size:0.55em;font-weight:400;">v1.8</span></h1>
   <div class="subtitle">Изменение значений — сразу, без кнопки «Рассчитать».</div>
 
   <section class="block">
@@ -627,6 +668,19 @@
         <button id="summaryClose" class="summary-close" type="button" aria-label="Закрыть">×</button>
       </div>
       <div id="summaryOverlayStatus" class="summary-status"></div>
+      <div class="summary-cabinet">
+        <div class="summary-cabinet-title">Один кабинет</div>
+        <div class="summary-cabinet-grid">
+          <div class="summary-cabinet-item">
+            <span>Размер</span>
+            <strong id="summaryOverlayCabCm">—</strong>
+          </div>
+          <div class="summary-cabinet-item">
+            <span>Разрешение</span>
+            <strong id="summaryOverlayCabPx">—</strong>
+          </div>
+        </div>
+      </div>
       <div class="summary-pixels">
         <span>Всего пикселей</span>
         <strong id="summaryOverlayPixels">0 px</strong>
@@ -663,6 +717,8 @@
   const summaryOverlay = $('summaryOverlay');
   const summaryClose = $('summaryClose');
   const summaryOverlayStatus = $('summaryOverlayStatus');
+  const summaryOverlayCabCm = $('summaryOverlayCabCm');
+  const summaryOverlayCabPx = $('summaryOverlayCabPx');
   const summaryOverlayPixels = $('summaryOverlayPixels');
   const summaryOverlayTable = $('summaryOverlayTable');
   const summaryOverlayPortNote = $('summaryOverlayPortNote');
@@ -1355,6 +1411,12 @@
 
   function openSummaryOverlay() {
     summaryOverlayStatus.innerHTML = status.innerHTML;
+
+    const c = cabinet();
+    summaryOverlayCabCm.textContent =
+      good(c.cmX) && good(c.cmY) ? `${fmt(c.cmX, 2)} × ${fmt(c.cmY, 2)} см` : '—';
+    summaryOverlayCabPx.textContent =
+      good(c.pxX) && good(c.pxY) ? `${Math.round(c.pxX)} × ${Math.round(c.pxY)} px` : '—';
 
     const totalText = (f.pixelsTotal.value || '0').trim();
     summaryOverlayPixels.textContent = `${totalText} px`;
