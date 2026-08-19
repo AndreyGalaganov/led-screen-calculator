@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#000000">
-<title>Калькулятор экрана v1.6</title>
+<title>Калькулятор экрана v1.7</title>
 <style>
   * { box-sizing: border-box; }
 
@@ -252,6 +252,146 @@
     font-weight: 700;
   }
 
+
+
+  .status.expandable-status {
+    cursor: zoom-in;
+    touch-action: manipulation;
+  }
+
+  .status.expandable-status:focus-visible {
+    outline: 2px solid var(--line);
+    outline-offset: 3px;
+  }
+
+  .expand-hint {
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1.35;
+    margin-top: 6px;
+    text-align: center;
+  }
+
+  .summary-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: none;
+    background: #000;
+    color: #fff;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .summary-overlay.open {
+    display: block;
+  }
+
+  .summary-sheet {
+    width: 100%;
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding:
+      max(24px, env(safe-area-inset-top))
+      max(18px, env(safe-area-inset-right))
+      max(28px, env(safe-area-inset-bottom))
+      max(18px, env(safe-area-inset-left));
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .summary-inner {
+    width: min(920px, 100%);
+    margin: 0 auto;
+  }
+
+  .summary-topline {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+
+  .summary-title {
+    margin: 0;
+    font-size: clamp(24px, 6vw, 40px);
+    line-height: 1.05;
+    font-weight: 700;
+  }
+
+  .summary-close {
+    width: 46px;
+    min-width: 46px;
+    height: 46px;
+    min-height: 46px;
+    padding: 0;
+    font-size: 30px;
+    line-height: 1;
+    font-weight: 400;
+  }
+
+  .summary-status {
+    border: 1px solid var(--line);
+    padding: clamp(14px, 3vw, 22px);
+    font-size: clamp(16px, 3.5vw, 24px);
+    line-height: 1.55;
+  }
+
+  .summary-status > div + div {
+    margin-top: 4px;
+  }
+
+  .summary-pixels {
+    margin-top: 18px;
+    border: 1px solid var(--line);
+    padding: 14px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 16px;
+    font-size: clamp(15px, 3vw, 21px);
+  }
+
+  .summary-pixels strong {
+    white-space: nowrap;
+    font-size: clamp(20px, 4.5vw, 30px);
+  }
+
+  .summary-port-title {
+    margin: 22px 0 9px;
+    font-size: clamp(16px, 3.2vw, 22px);
+    font-weight: 700;
+  }
+
+  .summary-table-wrap {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .summary-overlay .port-table {
+    font-size: clamp(12px, 2.7vw, 18px);
+  }
+
+  .summary-overlay .port-table th,
+  .summary-overlay .port-table td {
+    padding: clamp(8px, 2vw, 13px) clamp(7px, 1.8vw, 12px);
+  }
+
+  .summary-port-note {
+    margin-top: 10px;
+    color: var(--muted);
+    font-size: clamp(11px, 2.4vw, 14px);
+    line-height: 1.45;
+  }
+
+  body.summary-open {
+    overflow: hidden;
+  }
+
   @media (max-width: 390px) {
     .block { padding: 10px; }
     .block-title { font-size: 16px; }
@@ -272,7 +412,7 @@
 </head>
 <body>
 <main class="app">
-  <h1>Калькулятор экрана <span style="font-size:0.55em;font-weight:400;">v1.6</span></h1>
+  <h1>Калькулятор экрана <span style="font-size:0.55em;font-weight:400;">v1.7</span></h1>
   <div class="subtitle">Изменение значений — сразу, без кнопки «Рассчитать».</div>
 
   <section class="block">
@@ -467,9 +607,10 @@
       Для MCTRL300 используйте строку 650 000 px/порт. Точный предел всегда зависит от модели контроллера.
     </div>
 
-    <div id="status" class="status">
+    <div id="status" class="status expandable-status" role="button" tabindex="0" aria-label="Открыть итог расчёта на весь экран">
       Введите параметры кабинета и целевое соотношение сторон.
     </div>
+    <div class="expand-hint">Нажмите на итог, чтобы открыть его на весь экран</div>
 
     <div class="buttons">
       <button id="clearScreen" type="button">Очистить экран</button>
@@ -477,6 +618,25 @@
     </div>
   </section>
 </main>
+
+<div id="summaryOverlay" class="summary-overlay" aria-hidden="true">
+  <div class="summary-sheet" role="dialog" aria-modal="true" aria-labelledby="summaryTitle">
+    <div class="summary-inner">
+      <div class="summary-topline">
+        <h2 id="summaryTitle" class="summary-title">Итог расчёта</h2>
+        <button id="summaryClose" class="summary-close" type="button" aria-label="Закрыть">×</button>
+      </div>
+      <div id="summaryOverlayStatus" class="summary-status"></div>
+      <div class="summary-pixels">
+        <span>Всего пикселей</span>
+        <strong id="summaryOverlayPixels">0 px</strong>
+      </div>
+      <div class="summary-port-title">Ограничения на 1 Ethernet-порт</div>
+      <div id="summaryOverlayTable" class="summary-table-wrap"></div>
+      <div id="summaryOverlayPortNote" class="summary-port-note"></div>
+    </div>
+  </div>
+</div>
 
 <script>
 (() => {
@@ -500,6 +660,12 @@
   };
 
   const status = $('status');
+  const summaryOverlay = $('summaryOverlay');
+  const summaryClose = $('summaryClose');
+  const summaryOverlayStatus = $('summaryOverlayStatus');
+  const summaryOverlayPixels = $('summaryOverlayPixels');
+  const summaryOverlayTable = $('summaryOverlayTable');
+  const summaryOverlayPortNote = $('summaryOverlayPortNote');
   const ratioLockBtn = $('ratioLockBtn');
   const ratioNote = $('ratioNote');
   const freeSizeBtn = $('freeSizeBtn');
@@ -1187,6 +1353,39 @@
       `<div><b>Соотношение:</b> ${ratioLocked ? 'зафиксировано' : 'автоматически рассчитано'}</div>`;
   }
 
+  function openSummaryOverlay() {
+    summaryOverlayStatus.innerHTML = status.innerHTML;
+
+    const totalText = (f.pixelsTotal.value || '0').trim();
+    summaryOverlayPixels.textContent = `${totalText} px`;
+
+    const sourceTable = document.querySelector('.port-table');
+    summaryOverlayTable.innerHTML = '';
+    if (sourceTable) {
+      const clone = sourceTable.cloneNode(true);
+      clone.querySelectorAll('[id]').forEach(el => el.removeAttribute('id'));
+      summaryOverlayTable.appendChild(clone);
+    }
+
+    const sourceNote = sourceTable && sourceTable.closest('.port-table-wrap')
+      ? sourceTable.closest('.port-table-wrap').nextElementSibling
+      : null;
+    summaryOverlayPortNote.textContent = sourceNote ? sourceNote.textContent.trim() : '';
+
+    summaryOverlay.classList.add('open');
+    summaryOverlay.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('summary-open');
+    summaryClose.focus({ preventScroll: true });
+  }
+
+  function closeSummaryOverlay() {
+    if (!summaryOverlay.classList.contains('open')) return;
+    summaryOverlay.classList.remove('open');
+    summaryOverlay.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('summary-open');
+    status.focus({ preventScroll: true });
+  }
+
   function onInput(fn) {
     if (busy) return;
     busy = true;
@@ -1601,6 +1800,22 @@
 
     saveState();
   }));
+
+  status.addEventListener('click', openSummaryOverlay);
+  status.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      openSummaryOverlay();
+    }
+  });
+
+  summaryClose.addEventListener('click', closeSummaryOverlay);
+  summaryOverlay.addEventListener('click', e => {
+    if (e.target === summaryOverlay) closeSummaryOverlay();
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeSummaryOverlay();
+  });
 
   $('clearScreen').addEventListener('click', () => {
     for (const id of ['metersX', 'metersY', 'pixelsX', 'pixelsY', 'countX', 'countY', 'countTotal', 'pixelsTotal']) {
